@@ -36,7 +36,7 @@ jobs:
 
       - name: Update image tag in manifests
         run: |
-          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' root/deployment.yaml
+          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' root/root/deployment.yaml
 
       - name: Commit and Push changes to manifests repo
         run: |

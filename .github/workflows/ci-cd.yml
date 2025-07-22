@@ -31,7 +31,7 @@ jobs:
     - name: Clonar repo de manifestos com SSH
       uses: actions/checkout@v3
       with:
-        repository: JorgeAntero/Projeto-5-My-App-Manifests
+        repository: JorgeAntero/Projeto-5-Manifests
         path: manifests
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
         

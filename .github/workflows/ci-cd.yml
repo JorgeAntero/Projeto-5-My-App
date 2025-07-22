@@ -1,4 +1,4 @@
-name: CI/CD
+name: Build and Deploy
 
 on:
   push:
@@ -6,63 +6,43 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    name: Build e PR de Manifests
+  build-push:
     runs-on: ubuntu-latest
 
-    env:
-      IMAGE_NAME: jorgeantero/hello-app
-      MANIFEST_REPO: git@github.com:JorgeAntero/Projeto-5-Manifests.git
-      MANIFEST_PATH: root/deployment.yaml
-
     steps:
-      - name: Checkout do repositório da aplicação
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Definir TAG com timestamp
-        run: echo "TAG=$(date +%s)" >> $GITHUB_ENV
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Login no DockerHub
-        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-
-      - name: Build e Push da imagem
+      - name: Build Docker image
         run: |
-          docker build -t $IMAGE_NAME:${{ env.TAG }} .
-          docker push $IMAGE_NAME:${{ env.TAG }}
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/hello-app:latest .
 
-      - name: Clonar repositório de manifests com SSH
+      - name: Push Docker image
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-          git clone $MANIFEST_REPO manifests
+          docker push ${{ secrets.DOCKER_USERNAME }}/hello-app:latest
 
-      - name: Atualizar deployment.yaml com nova TAG
+      - name: Checkout manifests repo
+        uses: actions/checkout@v3
+        with:
+          repository: JorgeAntero/Projeto-5-Manifests
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: root
+
+      - name: Update image tag in manifests
         run: |
-          sed -i "s|\(image: $IMAGE_NAME:\).*|\1${{ env.TAG }}|" manifests/${{ env.MANIFEST_PATH }}
+          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' manifests/deployment.yaml
 
-      - name: Configurar git
+      - name: Commit and Push changes to manifests repo
         run: |
           cd manifests
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git checkout main
-          git checkout -b update-image-${{ env.TAG }}
-
-      - name: Commit e push
-        run: |
-          cd manifests
-          git add ${{ env.MANIFEST_PATH }}
-          git commit -m "Atualiza imagem para tag ${{ env.TAG }}"
-          git push origin update-image-${{ env.TAG }}
-
-      - name: Criar Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ github.token }}
-          path: manifests
-          branch: update-image-${{ env.TAG }}
-          base: main
-          title: "Atualiza imagem para tag ${{ env.TAG }}"
-          commit-message: "Atualiza imagem para tag ${{ env.TAG }}"
+          git add deployment.yaml
+          git commit -m "Update image tag to latest"
+          git push origin main

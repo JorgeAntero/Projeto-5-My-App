@@ -1,4 +1,4 @@
-name: CI/CD - Build, Push e PR
+name: CI/CD
 
 on:
   push:

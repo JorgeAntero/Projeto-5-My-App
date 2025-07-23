@@ -52,7 +52,9 @@ jobs:
           git push origin update-image-latest
 
       - name: Install GitHub CLI
-        uses: cli/cli-action@v2
+        run: |
+          sudo apt update
+          sudo apt install -y gh
 
       - name: Create Pull Request
         run: |

@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build-push:
@@ -30,49 +27,27 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/hello-app:latest
 
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+      - name: Checkout manifests repo
+        uses: actions/checkout@v3
+        with:
+          repository: JorgeAntero/Projeto-5-Manifests
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: root
 
-      - name: Clone manifests repo via SSH
+      - name: Update image tag in manifests
         run: |
-          git clone git@github.com:JorgeAntero/Projeto-5-Manifests.git manifests
+          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' root/root/deployment.yaml
 
-      - name: Update image tag and push to new branch
+      - name: Commit and Push changes to manifests repo
         run: |
-          cd manifests/root
-          sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' deployment.yaml
-
+          cd root/root
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-
-          BRANCH_NAME=update-image-$(date +%Y-%m-%d-%H-%M-%S)
-
-          git checkout -b $BRANCH_NAME
-
+          
           if git diff --quiet; then
             echo "No changes to commit."
           else
             git add deployment.yaml
             git commit -m "Update image tag to latest"
-            git push origin $BRANCH_NAME
+            git push origin main
           fi
-
-      - name: Create Pull Request
-        run: |
-          sudo apt-get update && sudo apt-get install -y gh
-
-          cd manifests/root
-          BRANCH_NAME=$(git branch --show-current)
-
-          gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-
-          gh pr create \
-            --repo JorgeAntero/Projeto-5-Manifests \
-            --head $BRANCH_NAME \
-            --base main \
-            --title "Atualiza imagem para latest" \
-            --body "Atualização automática do container via CI/CD."

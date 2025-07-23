@@ -27,40 +27,27 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/hello-app:latest
 
-      - name: Setup SSH key for manifests repo
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      - name: Clone manifests repo via SSH
-        run: git clone git@github.com:JorgeAntero/Projeto-5-Manifests.git root
+      - name: Checkout manifests repo
+        uses: actions/checkout@v3
+        with:
+          repository: JorgeAntero/Projeto-5-Manifests
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: root
 
       - name: Update image tag in manifests
         run: |
           sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' root/root/deployment.yaml
 
-      - name: Commit and push to new branch
+      - name: Commit and Push changes to manifests repo
         run: |
-          cd root
+          cd root/root
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git checkout -b update-image-latest || git checkout update-image-latest
-          git add root/deployment.yaml
-          git commit -m "Update image tag to latest" || echo "No changes to commit"
-          git push origin update-image-latest
-
-      - name: Install GitHub CLI
-        uses: cli/cli-action@v2
-
-      - name: Create Pull Request
-        run: |
-          cd root
-          gh pr create \
-            --title "Update image tag to latest" \
-            --body "Atualização automática da imagem pelo GitHub Actions." \
-            --base main \
-            --head update-image-latest || echo "PR já existe"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          if git diff --quiet; then
+            echo "No changes to commit."
+          else
+            git add deployment.yaml
+            git commit -m "Update image tag to latest"
+            git push origin main
+          fi

@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build e Deploy
 
 on:
   push:
@@ -13,35 +13,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checar código
         uses: actions/checkout@v3
 
-      - name: Log in to Docker Hub
+      - name: Login no Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
+      - name: Buildar imagem Docker
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/hello-app:latest .
 
-      - name: Push Docker image
+      - name: Push na imagem Docker
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/hello-app:latest
 
-      - name: Checkout manifests repo
+      - name: Checkout no repo manifests
         uses: actions/checkout@v3
         with:
           repository: JorgeAntero/Projeto-5-Manifests
           token: ${{ secrets.GITHUB_TOKEN }}
           path: root
 
-      - name: Update image tag in manifests
+      - name: Atualiza a tag de imagem no manifests
         run: |
           sed -i 's|image: .*|image: ${{ secrets.DOCKER_USERNAME }}/hello-app:latest|' root/root/deployment.yaml
 
-      - name: Commit and Push changes to manifests repo
+      - name: Commit e Push para o repo manifests
         run: |
           cd root/root
           git config user.name "github-actions"
